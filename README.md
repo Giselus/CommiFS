@@ -21,5 +21,5 @@ gcc -Wall main.c `pkg-config fuse --cflags --libs` -o commiFS
 If the compilation was successful you can run mount file system by running:
 
 ```
-./commiFS -f {PATH_TO_FOLDER_TO_MOUNT}
+./commiFS -f {PATH_TO_FOLDER_TO_MOUNT} -o nonempty
 ```
