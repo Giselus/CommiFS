@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <sys/types.h>
 // it is very important that this define is before fuse.h is included
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
@@ -234,6 +235,7 @@ static int comi_utimens(const char *path, const struct timespec ts[2])
 	return 0;
 }
 #endif
+
 #define hashLength 16
 
 static void comi_divide(char fpath[PATH_MAX], const char *path){
@@ -253,28 +255,31 @@ static void comi_divide(char fpath[PATH_MAX], const char *path){
 }
 
 
-static int get_real_path(const char *path, char *fullRealPath){
+static int get_real_path(char *fullRealPath, const char *path){
+	printf("\n\nREAL PATH: %s\n", path);
 	char fpath[PATH_MAX];
 	comi_fullpath(fpath, path);
+	printf("Comi fullpath: %s\n", fpath);
 	int fd = open(fpath, O_RDONLY);
 	if(fd == -1)
 		return fd;
 
 	char buf[hashLength * 2]; //hash_size
-	int res = pread(fd, buf, 20, 0); //hash_size
-	buf[res-1] = 0;
+	int res = pread(fd, buf, hashLength, 0); //hash_size
+	buf[hashLength] = 0;
 	close(fd);
 	if(res == -1) {
 		return res;
 	}
 	
 	comi_divide(fullRealPath, buf);
+	printf("FullRealPAth: %s\n", fullRealPath);
 	return 0;
 }
 
 static int proxy_open(const char *path, struct fuse_file_info *fi) {
 	char fpath[PATH_MAX];
-	int res = get_real_path(path, fpath);
+	int res = get_real_path(fpath, path);
 	if(res == -1)
 		return res;
 	if(fi == NULL) {
@@ -321,30 +326,32 @@ static int comi_read(const char *path, char *buf, size_t size, off_t offset,
 
 static int hash_file(char *path, char *buf) 
 {
-    char cmd[PATH_MAX] = "shasum -a 256 ";   
-    strncat(cmd, path, PATH_MAX);
+	char cmd[PATH_MAX] = "shasum -a 256 ";   
+	strncat(cmd, path, PATH_MAX);
 
-    FILE *fp;
+	FILE *fp;
 
-    if ((fp = popen(cmd, "r")) == NULL) {
-        printf("Error opening pipe!\n");
-        return -1;
-    }
+	if ((fp = popen(cmd, "r")) == NULL) {
+			printf("Error opening pipe!\n");
+			return -1;
+	}
 
-    fgets(buf, 17, fp);
+	fgets(buf, hashLength + 1, fp);
+	buf[hashLength] = 0;
 
-    if (pclose(fp)) {
-        printf("Command not found or exited with error status\n");
-        return -1;
-    }
+	if (pclose(fp)) {
+			printf("Command not found or exited with error status\n");
+			return -1;
+	}
 
-    return 0;
+	return 0;
 }
 
 static int cp_file(char *src_path, char *dest_path) 
 {
+	printf("CP_FILE src: %s  dest: %s\n", src_path, dest_path);
 	char cmd[2*PATH_MAX] = "cp ";   
-    strncat(cmd, src_path, PATH_MAX);
+	strncat(cmd, src_path, PATH_MAX);
 	strncat(cmd, " ", 1);
 	strncat(cmd, dest_path, PATH_MAX);
 
@@ -365,8 +372,9 @@ static int cp_file(char *src_path, char *dest_path)
 
 static int mv_file(char *src_path, char *dest_path) 
 {
+	printf("MV_FILE src: %s  dest: %s\n", src_path, dest_path);
 	char cmd[2*PATH_MAX] = "mv ";   
-    strncat(cmd, src_path, PATH_MAX);
+	strncat(cmd, src_path, PATH_MAX);
 	strncat(cmd, " ", 1);
 	strncat(cmd, dest_path, PATH_MAX);
 
@@ -396,9 +404,8 @@ static int comi_write(const char *path, const char *buf, size_t size,
 	int fd;
 	int res;
 	(void) fi;
-	// fd = proxy_open(path, NULL);
-	char fpath[PATH_MAX];
-	res = get_real_path(path, fpath);
+	char fpath[PATH_MAX] ;
+	res = get_real_path(fpath, path);
 	if(res == -1)
 		return res;
 	
@@ -406,22 +413,41 @@ static int comi_write(const char *path, const char *buf, size_t size,
 	comi_fullpath(tmp_path, "/rootOfAllFiles/tmp");
 	cp_file(fpath, tmp_path);
 	
-	if (fd == -1)
-		return -errno;
+	printf("TEMP path %s\n", tmp_path);
 
 	fd = open(tmp_path, O_CREAT|O_WRONLY|O_TRUNC);
 	res = pwrite(fd, buf, size, offset);
 	if (res == -1)
 		res = -errno;
+	close(fd);
 
-	char hash[hashLength * 2];
+	char hash[hashLength + 1];
 	hash_file(tmp_path, hash);
 
 	char dst_path[PATH_MAX];
-	mv_file(tmp_path, hash);
+	comi_divide(dst_path, hash);
 
-	if(fi == NULL)
-		close(fd);
+	struct stat st = {0};
+
+	char hashPrefix[PATH_MAX];
+	comi_fullpath(hashPrefix, "/rootOfAllFiles");
+	
+	for (int i = 0; i < hashLength; i++) {
+		strncat(hashPrefix, "/", 1);
+		strncat(hashPrefix, hash + i, 1);
+		printf("Prefix %s\n", hashPrefix);
+		if (stat(hashPrefix, &st) == -1) {
+			mkdir(hashPrefix, 0700);
+		}
+	}
+
+	mv_file(tmp_path, dst_path);
+	
+	char real_path[PATH_MAX];
+	comi_fullpath(real_path, path);
+	fd = open(real_path, O_WRONLY|O_TRUNC);
+	pwrite(fd,hash,hashLength,0);
+	close(fd);
 	return res;
 }
 
@@ -439,7 +465,6 @@ static int comi_statfs(const char *path, struct statvfs *stbuf)
 
 static int comi_release(const char *path, struct fuse_file_info *fi)
 {
-	printf("XDDD cos zamykam\n");
 	(void) path;
 	close(fi->fh);
 	return 0;

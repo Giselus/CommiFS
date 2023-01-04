@@ -5,6 +5,7 @@ target_folder=$1
 source_folder=$2
 script_path=$(pwd)/${script_name:2}
 
+# echo $script_path
 
 cd "$source_folder"
 
@@ -18,12 +19,6 @@ for item in *; do
     hash=$(echo "$hash" | tr '[:lower:]' '[:upper:]')
     hash=${hash:0:16}
 
-    version=1
-
-    while [[ -f "$target_folder/$hash-$version" ]] && ! cmp -s "$item" "$target_folder/$hash-$version"; do
-      ((version++))
-    done
-	
 	chars=$(echo "$hash" | grep -o '.')
 
 	path=""
@@ -32,8 +27,8 @@ for item in *; do
 		mkdir -p "$target_folder$path"
 	done
 	
-    cp "$item" "$target_folder/$path/$hash-$version"
+    cp "$item" "$target_folder/$path/$hash"
 
-    echo "$hash-$version" > "$item"
+    echo "$hash" > "$item"
   fi
 done
