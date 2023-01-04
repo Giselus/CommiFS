@@ -5,6 +5,7 @@ target_folder=$1
 source_folder=$2
 script_path=$(pwd)/${script_name:2}
 
+
 cd "$source_folder"
 
 for item in *; do
