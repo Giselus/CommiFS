@@ -14,12 +14,14 @@
 
 static void get_fullpath(char fpath[PATH_MAX], const char *path) 
 {
+	printf("get_fullpath %s\n", path);
 	strcpy(fpath, COMI_CONTEXT->rootdir);
 	strncat(fpath, path, PATH_MAX);
 }
 
 static void divide(char fpath[PATH_MAX], const char *path) 
 {
+	printf("divide %s\n", path);
 	char realPath[HASH_LENGTH * 4];
 	for(int i = 0; i < HASH_LENGTH; i++){
 		realPath[i*2] = path[i];
@@ -38,10 +40,9 @@ static void divide(char fpath[PATH_MAX], const char *path)
 
 static int get_real_path(char *fullRealPath, const char *path) 
 {
-	printf("\n\nREAL PATH: %s\n", path);
+	printf("\nget_real_path %s\n", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
-	printf("Comi fullpath: %s\n", fpath);
 	int fd = open(fpath, O_RDONLY);
 	if(fd == -1)
 		return fd;
@@ -55,12 +56,12 @@ static int get_real_path(char *fullRealPath, const char *path)
 	}
 	
 	divide(fullRealPath, buf);
-	printf("FullRealPAth: %s\n", fullRealPath);
 	return 0;
 }
 
 static int proxy_open(const char *path, struct fuse_file_info *fi) 
 {
+	printf("proxy_open %s\n", path);
 	char fpath[PATH_MAX];
 	int res = get_real_path(fpath, path);
 	if(res == -1)
@@ -74,6 +75,7 @@ static int proxy_open(const char *path, struct fuse_file_info *fi)
 
 static int get_file_hash(char *path, char *buf) 
 {
+	printf("get_file_hash %s\n", path);
 	char cmd[PATH_MAX] = "shasum -a 256 ";   
 	strncat(cmd, path, PATH_MAX);
 
@@ -118,14 +120,14 @@ static int cp_mv_file(char *cmd, char *src_path, char *dest_path)
 
 static int cp_file(char *src_path, char *dest_path) 
 {
-	printf("CP_FILE src: %s  dest: %s\n", src_path, dest_path);
+	printf("cp_file src: %s dest: %s\n", src_path, dest_path);
 	char cmd[2*PATH_MAX] = "cp ";
 	return cp_mv_file(cmd, src_path, dest_path);
 }
 
 static int mv_file(char *src_path, char *dest_path) 
 {
-	printf("MV_FILE src: %s  dest: %s\n", src_path, dest_path);
+	printf("mv_file src: %s dest: %s\n", src_path, dest_path);
 	char cmd[2*PATH_MAX] = "mv ";
 	return cp_mv_file(cmd, src_path, dest_path);
 }
