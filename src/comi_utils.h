@@ -7,12 +7,14 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <sys/types.h>
+#include "context.h"
 
-#define HASH_LENGTH 16
+#define COMI_DATA	"/comiData"
+#define HASH_LENGTH 	16
 
 static void get_fullpath(char fpath[PATH_MAX], const char *path) 
 {
-	strcpy(fpath, "/home/michal/Desktop/commifs/src/comiFolder");
+	strcpy(fpath, COMI_CONTEXT->rootdir);
 	strncat(fpath, path, PATH_MAX);
 }
 
@@ -28,7 +30,8 @@ static void divide(char fpath[PATH_MAX], const char *path)
 	char realPathWithPrefix[HASH_LENGTH * 5];
 	
 	strncat(realPath, path, HASH_LENGTH * 2);
-	strcpy(realPathWithPrefix, "/shared/");
+	strcpy(realPathWithPrefix, COMI_DATA);
+	strncat(realPathWithPrefix, "/", PATH_MAX);
 	strncat(realPathWithPrefix, realPath, PATH_MAX);
 	get_fullpath(fpath, realPathWithPrefix);
 }
