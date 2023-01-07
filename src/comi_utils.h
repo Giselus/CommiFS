@@ -22,20 +22,21 @@ static void get_fullpath(char fpath[PATH_MAX], const char *path)
 static void divide(char fpath[PATH_MAX], const char *path) 
 {
 	printf("divide %s\n", path);
-	char realPath[HASH_LENGTH * 4];
+	char realPath[HASH_LENGTH * 3 + 1];
 	for(int i = 0; i < HASH_LENGTH; i++){
 		realPath[i*2] = path[i];
 		realPath[i*2+1] = '/';
 	}
 	realPath[HASH_LENGTH * 2] = 0;
 
-	char realPathWithPrefix[HASH_LENGTH * 5];
+	char realPathWithPrefix[PATH_MAX];
 	
-	strncat(realPath, path, HASH_LENGTH * 2);
+	strncat(realPath, path, HASH_LENGTH);
 	strcpy(realPathWithPrefix, COMI_DATA);
 	strncat(realPathWithPrefix, "/", PATH_MAX);
 	strncat(realPathWithPrefix, realPath, PATH_MAX);
 	get_fullpath(fpath, realPathWithPrefix);
+	printf("divive return: %s\n", fpath);
 }
 
 static int get_real_path(char *fullRealPath, const char *path) 
@@ -44,11 +45,12 @@ static int get_real_path(char *fullRealPath, const char *path)
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int fd = open(fpath, O_RDONLY);
-	if(fd == -1)
+	if(fd == -1) {
 		return fd;
+	}
 
-	char buf[HASH_LENGTH * 2]; //hash_size
-	int res = pread(fd, buf, HASH_LENGTH, 0); //hash_size
+	char buf[HASH_LENGTH * 2];
+	int res = pread(fd, buf, HASH_LENGTH, 0);
 	buf[HASH_LENGTH] = 0;
 	close(fd);
 	if(res == -1) {
@@ -64,12 +66,14 @@ static int proxy_open(const char *path, struct fuse_file_info *fi)
 	printf("proxy_open %s\n", path);
 	char fpath[PATH_MAX];
 	int res = get_real_path(fpath, path);
-	if(res == -1)
+	if(res == -1) {
 		return res;
+	}
 	if(fi == NULL) {
 		printf("Open with no file info %s\n", fpath);
 		return open(fpath, O_RDONLY | O_WRONLY);
 	}
+	printf("proxy_open full_path: %s\n", fpath);
 	return open(fpath, fi->flags);
 }
 

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ $# -ne 2 ]; then
+	echo "Correct format: ./betterInit.sh TARGET_FOLDER SOURCE_FOLDER"
+	exit
+fi
+
 target_folder=$(realpath "$1")
 source_folder=$(realpath "$2")
 

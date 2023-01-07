@@ -1,15 +1,18 @@
 rm -rf comiFolder
 rm -rf mountComiFolder
+
 mkdir comiFolder
 mkdir mountComiFolder
 cd comiFolder
 mkdir comiData
 mkdir pliki
 cd pliki
-echo "zawartosc pliku a jakas tam" > a.txt
 mkdir A
 mkdir B
-mkdir C
-echo "zawartosc pliku a w A" > A/a.txt
-echo "zawartosc pliku b w B" > B/b.txt
-echo "zawartosc pliku c w C" > C/c.txt
+mkdir A/AB
+
+echo "zawartosc pliku a.txt" > a.txt
+
+echo "zawartosc pliku a.txt w A" > A/a.txt
+echo "zawartosc pliku b.txt w B" > B/b.txt
+echo "zawartosc pliku ab.txt w A/AB" > A/AB/ab.txt
