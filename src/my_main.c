@@ -1,4 +1,6 @@
 // it is very important that this define is before fuse.h is included
+#include <stdio.h>
+#include <unistd.h>
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
 #include "comi_utils.h"
@@ -12,27 +14,20 @@ void *comi_init(struct fuse_conn_info *conn)
 
 static int comi_getattr(const char *path, struct stat *stbuf)
 {
-	printf("Comi_getattr %s\n", path);
+	int res;
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
-	int res = lstat(fpath, stbuf);
-	// if (S_ISREG(stbuf->st_mode)) {
-    //     int pliki_len = strlen("/pliki");
-    //     if (strlen(path) > pliki_len) {
-    //         char path_substr[pliki_len + 1];
-    //         path_substr[pliki_len] = 0;
-    //         memcpy(path_substr, path, pliki_len);
-    //         if (strcmp("/pliki", path_substr) == 0) {
-    //             char real_path[PATH_MAX];
-    //             get_real_path(real_path, path);
-    //             res = lstat(real_path, stbuf);
-    //         }
-    //     }
-	// }
-	
-	if (res == -1) {
-		return -errno;
+	res = lstat(fpath, stbuf);
+
+	if (S_ISREG(stbuf->st_mode) && same_prefix(path, "/pliki")) {
+		char proxy_path[PATH_MAX];
+		get_real_path(proxy_path, path);
+		res = lstat(proxy_path, stbuf);
+		printf("%s path to real content of file\n", proxy_path);
 	}
+
+	if (res == -1)
+		return -errno;
 
 	return 0;
 }
@@ -228,10 +223,13 @@ static int comi_chown(const char *path, uid_t uid, gid_t gid)
 
 static int comi_truncate(const char *path, off_t size)
 {
-    printf("Comi_truncate %s\n", path);
+	printf("Comi_truncate %s %d\n", path, size);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = truncate(fpath, size);
+	int fd = open(fpath, O_RDWR);
+	pwrite(fd, "d8a076e4bc111bba", 100, 0);
+	close(fd);
 	if (res == -1) {
 		return -errno;
 	}
@@ -255,10 +253,13 @@ static int comi_utimens(const char *path, const struct timespec ts[2])
 }
 #endif
 
+
 static int comi_open(const char *path, struct fuse_file_info *fi)
 {
 	printf("Comi_open %s\n", path);
-	int fd = proxy_open(path, fi);
+	int fd;
+	
+	fd = proxy_open(path, fi);
 	if (fd == -1) {
 		return -1;
 	}
@@ -269,7 +270,7 @@ static int comi_open(const char *path, struct fuse_file_info *fi)
 static int comi_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-    printf("Comi_read %s size: %d\n", path, size);
+	printf("Comi_read %s size: %d\n", path, size);
 	int fd;
 	if(fi == NULL) {
 		fd = proxy_open(path, NULL);
@@ -296,7 +297,8 @@ static int comi_read(const char *path, char *buf, size_t size, off_t offset,
 static int comi_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
-    printf("Comi_write %s\n", path);
+	printf("\n\n***************************Write is starting********************************\n");
+	printf("Comi_write %s\n", path);
 	if(path == NULL || path[0] == 0) {
 		printf("If you want to modify a file path cannot be empty\n");
 		return -1;
@@ -313,8 +315,13 @@ static int comi_write(const char *path, const char *buf, size_t size,
 	char tmp_path[PATH_MAX];
 	get_fullpath(tmp_path, "/comiData/tmp");
 	cp_file(fpath, tmp_path);
-
-	fd = open(tmp_path, O_CREAT|O_WRONLY|O_TRUNC);
+	
+	if (fi->flags & O_APPEND) {
+		fd = open(tmp_path, fi->flags);
+	} else {
+		fd = open(tmp_path, fi->flags | O_TRUNC);
+	}
+	
 	res = pwrite(fd, buf, size, offset);
 	if (res == -1) {
 		res = -errno;
@@ -460,6 +467,43 @@ static int comi_removexattr(const char *path, const char *name)
 }
 #endif
 
+static int comi_create(const char *path, mode_t mode,
+              struct fuse_file_info *fi)
+{
+	printf("**********************Comi create************************\n");
+	int res;
+	char fpath[PATH_MAX];
+	get_fullpath(fpath, path);
+
+	res = open(fpath, fi->flags);
+
+	char hash[HASH_LENGTH + 1];
+	get_file_hash(fpath, hash);
+	pwrite(res, hash, HASH_LENGTH, 0);
+
+	char hashPrefix[PATH_MAX];
+	get_fullpath(hashPrefix, COMI_DATA);
+
+	struct stat st = {0};	
+	for (int i = 0; i < HASH_LENGTH; i++) {
+		strncat(hashPrefix, "/", 1);
+		strncat(hashPrefix, hash + i, 1);
+		if (stat(hashPrefix, &st) == -1) {
+			mkdir(hashPrefix, 0600);
+		}
+	}
+	char dst_path[PATH_MAX];
+	divide(dst_path, hash);
+	res = open(dst_path, O_CREAT|O_RDWR, 0600);
+	// }
+	if (res == -1)
+			return -errno;
+
+	fi->fh = res;
+	printf("**********************Comi create finished************************\n");
+	return 0;
+}
+
 static struct fuse_operations comi_oper = {
 	.init		= comi_init,
 	.getattr	= comi_getattr,
@@ -485,6 +529,7 @@ static struct fuse_operations comi_oper = {
 	.statfs		= comi_statfs,
 	.release	= comi_release,
 	.fsync		= comi_fsync,
+	.create 	= comi_create,
 #ifdef HAVE_POSIX_FALLOCATE
 	.fallocate	= comi_fallocate,
 #endif

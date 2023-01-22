@@ -74,10 +74,10 @@ static int proxy_open(const char *path, struct fuse_file_info *fi)
 		return open(fpath, O_RDONLY | O_WRONLY);
 	}
 	printf("proxy_open full_path: %s\n", fpath);
-	return open(fpath, fi->flags);
+	return open(fpath, fi->flags, S_IRWXU);
 }
 
-static int get_file_hash(char *path, char *buf) 
+static int get_file_hash(const char *path, char *buf) 
 {
 	printf("get_file_hash %s\n", path);
 	char cmd[PATH_MAX] = "shasum -a 256 ";   
@@ -134,4 +134,19 @@ static int mv_file(char *src_path, char *dest_path)
 	printf("mv_file src: %s dest: %s\n", src_path, dest_path);
 	char cmd[2*PATH_MAX] = "mv ";
 	return cp_mv_file(cmd, src_path, dest_path);
+}
+
+static int same_prefix(const char* path, const char* prefix) {
+	int path_length = strlen(path);
+	int prefix_len = strlen(prefix);
+
+	if (prefix_len > path_length) {
+		return 0;
+	}
+	for (int i=0; i<prefix_len; i++) {
+		if (path[i] != prefix[i]) {
+			return 0;
+		}
+	}
+	return 1;
 }
