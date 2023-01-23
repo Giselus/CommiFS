@@ -4,6 +4,7 @@
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
 #include "comi_utils.h"
+#include "log.h"
 
 void *comi_init(struct fuse_conn_info *conn)
 {
@@ -14,6 +15,7 @@ void *comi_init(struct fuse_conn_info *conn)
 
 static int comi_getattr(const char *path, struct stat *stbuf)
 {
+	log_syscall("Comi_getattr", path);
 	int res;
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
@@ -23,18 +25,18 @@ static int comi_getattr(const char *path, struct stat *stbuf)
 		char proxy_path[PATH_MAX];
 		get_real_path(proxy_path, path);
 		res = lstat(proxy_path, stbuf);
-		printf("%s path to real content of file\n", proxy_path);
 	}
 
-	if (res == -1)
+	if (res == -1) {
 		return -errno;
+	}
 
 	return 0;
 }
 
 static int comi_access(const char *path, int mask)
 {
-	printf("Comi_access %s\n", path);
+	log_syscall("Comi_access", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = access(fpath, mask);
@@ -47,7 +49,7 @@ static int comi_access(const char *path, int mask)
 
 static int comi_readlink(const char *path, char *buf, size_t size)
 {
-	printf("Comi_readlink %s\n", path);
+	log_syscall("Comi_readlink", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = readlink(fpath, buf, size - 1);
@@ -63,7 +65,7 @@ static int comi_readlink(const char *path, char *buf, size_t size)
 static int comi_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
-	// printf("Comi_readdir %s\n", path);
+	log_syscall("Comi_readdir", path);
 	DIR *dp;
 	struct dirent *de;
 
@@ -90,7 +92,7 @@ static int comi_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int comi_mknod(const char *path, mode_t mode, dev_t rdev)
 {
-	printf("Comi_mknod %s\n", path);
+	log_syscall("Comi_mknod", path);
 	int res;
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
@@ -112,7 +114,7 @@ static int comi_mknod(const char *path, mode_t mode, dev_t rdev)
 
 static int comi_mkdir(const char *path, mode_t mode)
 {
-	printf("Comi_mkdir %s\n", path);
+	log_syscall("Comi_mkdir", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = mkdir(fpath, mode);
@@ -125,7 +127,7 @@ static int comi_mkdir(const char *path, mode_t mode)
 
 static int comi_symlink(const char *from, const char *to)
 {
-	printf("Comi_symlink %s %s\n", from, to);
+	log_syscall("Comi_symlink", from);
 	char ffrom[PATH_MAX];
 	get_fullpath(ffrom, from);
 	char fto[PATH_MAX];
@@ -140,7 +142,7 @@ static int comi_symlink(const char *from, const char *to)
 
 static int comi_unlink(const char *path)
 {
-	printf("Comi_unlink %s\n", path);
+	log_syscall("Comi_unlink", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = unlink(fpath);
@@ -153,7 +155,7 @@ static int comi_unlink(const char *path)
 
 static int comi_rmdir(const char *path)
 {
-	printf("Comi_rmdir %s\n", path);
+	log_syscall("Comi_rmdir", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = rmdir(fpath);
@@ -166,7 +168,7 @@ static int comi_rmdir(const char *path)
 
 static int comi_rename(const char *from, const char *to)
 {
-	printf("Comi_rename %s %s\n", from, to);
+	log_syscall("Comi_rename", from);
 	char ffrom[PATH_MAX];
 	get_fullpath(ffrom, from);
 	char fto[PATH_MAX];
@@ -181,7 +183,7 @@ static int comi_rename(const char *from, const char *to)
 
 static int comi_link(const char *from, const char *to)
 {
-    printf("Comi_link %s %s\n", from, to);
+    log_syscall("Comi_link", from);
 	char ffrom[PATH_MAX];
 	get_fullpath(ffrom, from);
 	char fto[PATH_MAX];
@@ -196,7 +198,7 @@ static int comi_link(const char *from, const char *to)
 
 static int comi_chmod(const char *path, mode_t mode)
 {
-    printf("Comi_chmod %s\n", path);
+    log_syscall("Comi_chmod", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = chmod(fpath, mode);
@@ -209,7 +211,7 @@ static int comi_chmod(const char *path, mode_t mode)
 
 static int comi_chown(const char *path, uid_t uid, gid_t gid)
 {
-    printf("Comi_chown %s\n", path);
+    log_syscall("Comi_chown", path);
 	int res;
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
@@ -223,12 +225,13 @@ static int comi_chown(const char *path, uid_t uid, gid_t gid)
 
 static int comi_truncate(const char *path, off_t size)
 {
-	printf("Comi_truncate %s %d\n", path, size);
+	log_syscall("Comi_truncate", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = truncate(fpath, size);
 	int fd = open(fpath, O_RDWR);
-	pwrite(fd, "d8a076e4bc111bba", 100, 0);
+	// add hash to empty file
+
 	close(fd);
 	if (res == -1) {
 		return -errno;
@@ -240,7 +243,7 @@ static int comi_truncate(const char *path, off_t size)
 #ifdef HAVE_UTIMENSAT
 static int comi_utimens(const char *path, const struct timespec ts[2])
 {
-    printf("Comi_utimens %s\n", path);
+  log_syscall("Comi_utimens", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	/* don't use utime/utimes since they follow symlinks */
@@ -256,7 +259,7 @@ static int comi_utimens(const char *path, const struct timespec ts[2])
 
 static int comi_open(const char *path, struct fuse_file_info *fi)
 {
-	printf("Comi_open %s\n", path);
+	log_syscall("Comi_open", path);
 	int fd;
 	
 	fd = proxy_open(path, fi);
@@ -270,7 +273,7 @@ static int comi_open(const char *path, struct fuse_file_info *fi)
 static int comi_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
-	printf("Comi_read %s size: %d\n", path, size);
+	log_syscall("Comi_read %s size: %d\n", path);
 	int fd;
 	if(fi == NULL) {
 		fd = proxy_open(path, NULL);
@@ -297,8 +300,7 @@ static int comi_read(const char *path, char *buf, size_t size, off_t offset,
 static int comi_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
-	printf("\n\n***************************Write is starting********************************\n");
-	printf("Comi_write %s\n", path);
+	log_syscall("Comi_write", path);
 	if(path == NULL || path[0] == 0) {
 		printf("If you want to modify a file path cannot be empty\n");
 		return -1;
@@ -359,7 +361,7 @@ static int comi_write(const char *path, const char *buf, size_t size,
 
 static int comi_statfs(const char *path, struct statvfs *stbuf)
 {
-    printf("Comi_statfs %s\n", path);
+    log_syscall("Comi_statfs", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = statvfs(fpath, stbuf);
@@ -372,7 +374,7 @@ static int comi_statfs(const char *path, struct statvfs *stbuf)
 
 static int comi_release(const char *path, struct fuse_file_info *fi)
 {
-    printf("Comi_release %s\n", path);
+    log_syscall("Comi_release", path);
 	(void) path;
 	close(fi->fh);
 	return 0;
@@ -381,7 +383,7 @@ static int comi_release(const char *path, struct fuse_file_info *fi)
 static int comi_fsync(const char *path, int isdatasync,
 		     struct fuse_file_info *fi)
 {
-    printf("Comi_fsync %s\n", path);
+    log_syscall("Comi_fsync", path);
 	(void) path;
 	(void) isdatasync;
 	(void) fi;
@@ -392,7 +394,7 @@ static int comi_fsync(const char *path, int isdatasync,
 static int comi_fallocate(const char *path, int mode,
 			off_t offset, off_t length, struct fuse_file_info *fi)
 {
-    printf("Comi_fallocate %s\n", path);
+    log_syscall("Comi_fallocate", path);
 	int fd;
 
 	(void) fi;
@@ -419,7 +421,7 @@ static int comi_fallocate(const char *path, int mode,
 static int comi_setxattr(const char *path, const char *name, const char *value,
 			size_t size, int flags)
 {
-    printf("Comi_setxattr %s\n", path);
+    log_syscall("Comi_setxattr", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = lsetxattr(fpath, name, value, size, flags);
@@ -432,7 +434,7 @@ static int comi_setxattr(const char *path, const char *name, const char *value,
 static int comi_getxattr(const char *path, const char *name, char *value,
 			size_t size)
 {
-    printf("Comi_getxattr %s\n", path);
+    log_syscall("Comi_getxattr", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = lgetxattr(fpath, name, value, size);
@@ -444,7 +446,7 @@ static int comi_getxattr(const char *path, const char *name, char *value,
 
 static int comi_listxattr(const char *path, char *list, size_t size)
 {
-    printf("Comi_listxattr %s\n", path);
+    log_syscall("Comi_listxattr", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = llistxattr(fpath, list, size);
@@ -456,7 +458,7 @@ static int comi_listxattr(const char *path, char *list, size_t size)
 
 static int comi_removexattr(const char *path, const char *name)
 {
-    printf("Comi_removexattr %s\n", path);
+    log_syscall("Comi_removexattr", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int res = lremovexattr(fpath, name);
@@ -470,7 +472,6 @@ static int comi_removexattr(const char *path, const char *name)
 static int comi_create(const char *path, mode_t mode,
               struct fuse_file_info *fi)
 {
-	printf("**********************Comi create************************\n");
 	int res;
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
@@ -495,12 +496,10 @@ static int comi_create(const char *path, mode_t mode,
 	char dst_path[PATH_MAX];
 	divide(dst_path, hash);
 	res = open(dst_path, O_CREAT|O_RDWR, 0600);
-	// }
 	if (res == -1)
 			return -errno;
 
 	fi->fh = res;
-	printf("**********************Comi create finished************************\n");
 	return 0;
 }
 
@@ -549,12 +548,13 @@ int main(int argc, char *argv[])
 
 	comi_context = malloc(sizeof(struct comi_state));
 
+	comi_context->logfile = log_open();
 	comi_context->rootdir = realpath(argv[argc-2], NULL);
     argv[argc-2] = argv[argc-1];
     argv[argc-1] = NULL;
     argc--;
-
-  	fuse_stat = fuse_main(argc, argv, &comi_oper, comi_context);
 	
+  	fuse_stat = fuse_main(argc, argv, &comi_oper, comi_context);
+
 	return fuse_stat;
 }

@@ -14,14 +14,14 @@
 
 static void get_fullpath(char fpath[PATH_MAX], const char *path) 
 {
-	printf("get_fullpath %s\n", path);
+	log_syscall("get_fullpath", path);
 	strcpy(fpath, COMI_CONTEXT->rootdir);
 	strncat(fpath, path, PATH_MAX);
 }
 
 static void divide(char fpath[PATH_MAX], const char *path) 
 {
-	printf("divide %s\n", path);
+	log_syscall("divide", path);
 	char realPath[HASH_LENGTH * 3 + 1];
 	for(int i = 0; i < HASH_LENGTH; i++){
 		realPath[i*2] = path[i];
@@ -36,12 +36,12 @@ static void divide(char fpath[PATH_MAX], const char *path)
 	strncat(realPathWithPrefix, "/", PATH_MAX);
 	strncat(realPathWithPrefix, realPath, PATH_MAX);
 	get_fullpath(fpath, realPathWithPrefix);
-	printf("divive return: %s\n", fpath);
+	log_syscall("divide return", fpath);
 }
 
 static int get_real_path(char *fullRealPath, const char *path) 
 {
-	printf("\nget_real_path %s\n", path);
+	log_syscall("get_real_path", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 	int fd = open(fpath, O_RDONLY);
@@ -63,23 +63,21 @@ static int get_real_path(char *fullRealPath, const char *path)
 
 static int proxy_open(const char *path, struct fuse_file_info *fi) 
 {
-	printf("proxy_open %s\n", path);
+	log_syscall("proxy open", path);
 	char fpath[PATH_MAX];
 	int res = get_real_path(fpath, path);
 	if(res == -1) {
 		return res;
 	}
 	if(fi == NULL) {
-		printf("Open with no file info %s\n", fpath);
 		return open(fpath, O_RDONLY | O_WRONLY);
 	}
-	printf("proxy_open full_path: %s\n", fpath);
 	return open(fpath, fi->flags, S_IRWXU);
 }
 
 static int get_file_hash(const char *path, char *buf) 
 {
-	printf("get_file_hash %s\n", path);
+	log_syscall("get_file_hash", path);
 	char cmd[PATH_MAX] = "shasum -a 256 ";   
 	strncat(cmd, path, PATH_MAX);
 
@@ -136,7 +134,8 @@ static int mv_file(char *src_path, char *dest_path)
 	return cp_mv_file(cmd, src_path, dest_path);
 }
 
-static int same_prefix(const char* path, const char* prefix) {
+static int same_prefix(const char* path, const char* prefix) 
+{
 	int path_length = strlen(path);
 	int prefix_len = strlen(prefix);
 

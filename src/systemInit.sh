@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ $# -ne 2 ]; then
-	echo "Correct format: ./betterInit.sh TARGET_FOLDER SOURCE_FOLDER"
+	echo "Correct format: ./systemInit.sh TARGET_FOLDER SOURCE_FOLDER"
 	exit
 fi
 
