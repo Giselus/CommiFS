@@ -228,11 +228,21 @@ static int comi_truncate(const char *path, off_t size)
 	log_syscall("Comi_truncate", path);
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
+
 	int res = truncate(fpath, size);
 	int fd = open(fpath, O_RDWR);
-	// add hash to empty file
+	char hash[HASH_LENGTH + 1];
+	get_file_hash(fpath, hash);
 
-	close(fd);
+	char msg[LOG_MAX];
+	sprintf(msg, "Hash value after truncate %s\n", hash);
+	custom_log(msg);
+
+	pwrite(fd, hash, HASH_LENGTH, 0);
+
+	create_folder_tree(hash);
+	res = open_file_by_hash(hash);
+
 	if (res == -1) {
 		return -errno;
 	}
@@ -335,7 +345,6 @@ static int comi_write(const char *path, const char *buf, size_t size,
 
 	char dst_path[PATH_MAX];
 	divide(dst_path, hash);
-
 
 	char hashPrefix[PATH_MAX];
 	get_fullpath(hashPrefix, COMI_DATA);
@@ -472,30 +481,20 @@ static int comi_removexattr(const char *path, const char *name)
 static int comi_create(const char *path, mode_t mode,
               struct fuse_file_info *fi)
 {
+	log_syscall("Comi_create", path);
 	int res;
 	char fpath[PATH_MAX];
 	get_fullpath(fpath, path);
 
-	res = open(fpath, fi->flags);
+	res = open(fpath, O_CREAT|O_RDWR, 0600);
 
 	char hash[HASH_LENGTH + 1];
 	get_file_hash(fpath, hash);
 	pwrite(res, hash, HASH_LENGTH, 0);
+	
+	create_folder_tree(hash);
+	res = open_file_by_hash(hash);
 
-	char hashPrefix[PATH_MAX];
-	get_fullpath(hashPrefix, COMI_DATA);
-
-	struct stat st = {0};	
-	for (int i = 0; i < HASH_LENGTH; i++) {
-		strncat(hashPrefix, "/", 1);
-		strncat(hashPrefix, hash + i, 1);
-		if (stat(hashPrefix, &st) == -1) {
-			mkdir(hashPrefix, 0600);
-		}
-	}
-	char dst_path[PATH_MAX];
-	divide(dst_path, hash);
-	res = open(dst_path, O_CREAT|O_RDWR, 0600);
 	if (res == -1)
 			return -errno;
 

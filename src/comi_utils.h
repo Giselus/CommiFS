@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include "context.h"
+#include "log.h"
 
 #define COMI_DATA	"/comiData"
 #define HASH_LENGTH 	16
@@ -122,14 +123,20 @@ static int cp_mv_file(char *cmd, char *src_path, char *dest_path)
 
 static int cp_file(char *src_path, char *dest_path) 
 {
-	printf("cp_file src: %s dest: %s\n", src_path, dest_path);
+	char msg[LOG_MAX];
+	sprintf(msg, "cp_file src: %s dest: %s\n", src_path, dest_path);
+	custom_log(msg);
+
 	char cmd[2*PATH_MAX] = "cp ";
 	return cp_mv_file(cmd, src_path, dest_path);
 }
 
 static int mv_file(char *src_path, char *dest_path) 
 {
-	printf("mv_file src: %s dest: %s\n", src_path, dest_path);
+	char msg[LOG_MAX];
+	sprintf(msg, "mv_file src: %s dest: %s\n", src_path, dest_path);
+	custom_log(msg);
+
 	char cmd[2*PATH_MAX] = "mv ";
 	return cp_mv_file(cmd, src_path, dest_path);
 }
@@ -148,4 +155,25 @@ static int same_prefix(const char* path, const char* prefix)
 		}
 	}
 	return 1;
+}
+
+static int open_file_by_hash(const char * hash) {
+	char dst_path[PATH_MAX];
+	divide(dst_path, hash);
+	int res = open(dst_path, O_CREAT|O_RDWR, 0600);
+	return res;
+}
+
+static void create_folder_tree(const char* hash) {
+	char hashPrefix[PATH_MAX];
+	get_fullpath(hashPrefix, COMI_DATA);
+
+	struct stat st = {0};	
+	for (int i = 0; i < HASH_LENGTH; i++) {
+		strncat(hashPrefix, "/", 1);
+		strncat(hashPrefix, hash + i, 1);
+		if (stat(hashPrefix, &st) == -1) {
+			mkdir(hashPrefix, 0700);
+		}
+	}
 }

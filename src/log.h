@@ -1,3 +1,5 @@
+#ifndef _LOGGING_H_
+#define _LOGGING_H_
 #include <errno.h>
 #include <fuse.h>
 #include <stdarg.h>
@@ -8,6 +10,7 @@
 
 #include "context.h"
 
+#define LOG_MAX 4096
 #define LOG_FILE    
 
 FILE *log_open()
@@ -28,3 +31,8 @@ void log_syscall(char *syscall, const char *path)
 {
     fprintf(COMI_CONTEXT->logfile, "Path: %s    Syscall: %s\n", path, syscall);   
 }
+
+void custom_log(const char *text) {
+    fprintf(COMI_CONTEXT->logfile, "%s\n", text); 
+}
+#endif
