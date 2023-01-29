@@ -1,10 +1,15 @@
-// it is very important that this define is before fuse.h is included
 #include <stdio.h>
+#include <stdlib.h>
+#include <dirent.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
-#include "comi_utils.h"
-#include "log.h"
+
+#include "../include/comi_utils.h"
+#include "../include/context.h"
+#include "../include/log.h"
 
 void *comi_init(struct fuse_conn_info *conn)
 {
@@ -21,7 +26,7 @@ static int comi_getattr(const char *path, struct stat *stbuf)
 	get_fullpath(fpath, path);
 	res = lstat(fpath, stbuf);
 
-	if (S_ISREG(stbuf->st_mode) && same_prefix(path, "/pliki")) {
+	if (S_ISREG(stbuf->st_mode) && same_prefix(path, FILES)) {
 		char proxy_path[PATH_MAX];
 		get_real_path(proxy_path, path);
 		res = lstat(proxy_path, stbuf);

@@ -1,13 +1,13 @@
 #!/bin/bash
 
 if [ $# -ne 1 ]; then
-	echo "Correct format: ./bringMyFilesBack.sh SOURCE"
+	echo "Correct format: ./restoreFiles.sh SOURCE"
 	exit
 fi
 
 source_path=$(realpath "$1")
 data_path="$source_path/comiData"
-files_path="$source_path/pliki"
+files_path="$source_path/files"
 
 retrieveContent () {
     item=$1

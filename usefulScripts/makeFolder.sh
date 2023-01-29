@@ -5,8 +5,8 @@ mkdir comiFolder
 mkdir mountComiFolder
 cd comiFolder
 mkdir comiData
-mkdir pliki
-cd pliki
+mkdir files
+cd files
 mkdir A
 mkdir B
 mkdir A/AB

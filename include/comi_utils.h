@@ -1,16 +1,11 @@
-#include <linux/limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <string.h>
-#include <sys/types.h>
+#ifndef COMI_UTILS_H
+#define COMI_UTILS_H
+
 #include "context.h"
 #include "log.h"
 
-#define COMI_DATA	"/comiData"
+#define FILES			"/files"
+#define COMI_DATA		"/comiData"
 #define HASH_LENGTH 	16
 
 static void get_fullpath(char fpath[PATH_MAX], const char *path) 
@@ -177,3 +172,6 @@ static void create_folder_tree(const char* hash) {
 		}
 	}
 }
+
+
+#endif
